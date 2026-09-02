@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { supabase } from "../lib/supabase";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -15,17 +16,90 @@ export default function Home() {
   const [currentBird, setCurrentBird] = useState("");
   const [historyOpen, setHistoryOpen] = useState(true);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+ 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 useEffect(() => {
   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 }, [messages, loading]);
-  async function sendMessage(customMessage?: string) {
+
+useEffect(() => {
+  supabase.auth.getUser().then(async ({ data }) => {
+    const user = data.user;
+
+    setUserEmail(user?.email ?? null);
+
+    if (!user) return;
+
+    const { data: history } = await supabase
+      .from("chat_history")
+      .select("query")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (history) {
+      setSearchHistory(history.map((item) => item.query));
+    }
+  });
+}, []);
+async function loginWithEmail() {
+  if (!loginEmail.trim() || !loginPassword.trim()) {
+    alert("Vui lòng nhập email và mật khẩu.");
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: loginEmail.trim(),
+    password: loginPassword,
+  });
+
+  if (error) {
+    alert("Lỗi đăng nhập: " + error.message);
+    return;
+  }
+
+  setUserEmail(data.user.email ?? null);
+  alert("Đăng nhập thành công!");
+}
+async function signUpWithEmail() {
+  if (!loginEmail.trim() || !loginPassword.trim()) {
+    alert("Vui lòng nhập email và mật khẩu.");
+    return;
+  }
+
+  const { error } = await supabase.auth.signUp({
+    email: loginEmail.trim(),
+    password: loginPassword,
+  });
+
+  if (error) {
+    alert("Lỗi đăng ký: " + error.message);
+    return;
+  }
+
+  alert("Đăng ký thành công! Hãy kiểm tra email nếu Supabase yêu cầu xác nhận.");
+}
+async function logout() {
+  await supabase.auth.signOut();
+  setUserEmail(null);
+}
+async function sendMessage(customMessage?: string) {
     const text = (customMessage ?? message).trim();
     if (text.toLowerCase().includes("bồng chanh")) {
   setCurrentBird("bong-chanh");
 }
 
     if (!text || loading) return;
+    const { data: userData } = await supabase.auth.getUser();
+
+if (userData.user) {
+  await supabase.from("chat_history").insert({
+    user_id: userData.user.id,
+    query: text,
+  });
+}
     setSearchHistory((prev) => [text, ...prev]);
 
     setMessages((prev) => [
@@ -77,31 +151,70 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-gray-100 flex flex-row items-stretch">
-      <div className="flex-1 min-w-0 p-6">
-        <div className="flex items-center gap-3">
+      <div className="flex-1 min-w-0 p-0">
+        <div className="sticky top-0 z-50 flex items-center gap-3 bg-black text-white py-2 px-4">
   <img
     src="/images/avianbot-logo.png"
     alt="Logo AvianBOT"
-    className="w-16 h-16 object-contain"
+    className="w-10 h-10 object-contain"
   />
-  <h1 className="text-4xl font-bold">AvianBOT</h1>
+  <h1 className="text-2xl font-bold">AvianBOT</h1>
+{userEmail ? (
+  <span className="ml-auto hidden md:block text-sm">
+  {userEmail}
+</span>
+) : (
+  <div className="ml-auto flex items-center gap-2">
+    <input
+      type="email"
+      value={loginEmail}
+      onChange={(e) => setLoginEmail(e.target.value)}
+      placeholder="Email"
+      className="rounded-lg border-2 border-black bg-white px-3 py-2 text-black placeholder:text-gray-500"
+    />
+    <input
+  type="password"
+  value={loginPassword}
+  onChange={(e) => setLoginPassword(e.target.value)}
+  placeholder="Mật khẩu"
+  className="rounded-lg border-2 border-black bg-white px-3 py-2 text-black placeholder:text-gray-500"
+/>
+    <button
+      onClick={loginWithEmail}
+      className="rounded-lg bg-white px-3 py-2 text-black font-semibold"
+    >
+      Đăng nhập
+    </button>
+    <button
+  onClick={signUpWithEmail}
+  className="rounded-lg border-2 border-white px-3 py-2 font-semibold text-white"
+>
+  Đăng ký
+</button>
+  </div>
+)}
+
+<button
+  onClick={() => setHistoryOpen((prev) => !prev)}
+  className="text-3xl font-bold"
+>
+  ☰
+</button>
 </div>
-<p className="mt-2 text-center text-gray-600">
-  Trợ lý AI giúp bạn khám phá các loài chim và thiên nhiên tại Hồ Sông Đầm.
-</p>
-<div className="flex flex-col items-center mt-6">
+
+<div className="flex flex-col items-center mt-6 px-4 sm:px-6">
   <img   
     src="/images/avian-robot.png"
     alt="Robot AvianBOT"
-    className="w-56 h-56 object-contain"
+    className="w-40 h-40 object-contain"
   />
 
-  <h2 className="mt-4 text-2xl font-bold text-center max-w-2xl">
+  <h2 className="mt-4 text-xl md:text-2xl font-bold text-center max-w-2xl px-4">
     Xin chào! Tôi là Avian – người bạn đồng hành giúp bạn khám phá thế giới chim tại Hồ Sông Đầm.
   </h2>
 </div>
 
-        <button
+<div className="flex justify-center gap-4 mt-14"><button
   onClick={() => sendMessage("Hãy giới thiệu về hệ sinh thái Hồ Sông Đầm.")}
   disabled={loading}
   className="mb-4 rounded-xl border-2 border-black bg-white px-5 py-3 font-semibold text-black shadow-sm hover:bg-gray-50"
@@ -129,14 +242,15 @@ useEffect(() => {
     Giới thiệu trợ lý AvianBOT
   </span>
 </button>
-        <div className="space-y-4">
+</div>
+        <div className="space-y-4 pb-22">
           {messages.map((msg, index) => (
             <div
               key={index}
               className={
                 msg.role === "user"
-                  ? "bg-black text-white p-4 rounded-xl ml-auto max-w-xl"
-                  : "bg-white p-4 rounded-xl shadow max-w-xl"
+  ? "bg-[#064563] text-white p-4 rounded-xl ml-auto max-w-xl"
+  : "bg-white p-4 rounded-xl shadow max-w-xl"
               }
             >
               {msg.role === "assistant" ? (
@@ -182,7 +296,11 @@ msg.text.toLowerCase().includes("bồng chanh") &&
           <div ref={messagesEndRef} />
         </div>
       
-      <div className="border-t bg-white p-4">
+      <div
+  className={`fixed bottom-0 left-0 z-50 border-t bg-white p-4 transition-all duration-300 ${
+    historyOpen ? "right-80" : "right-0"
+  }`}
+>
         <div className="max-w-3xl mx-auto flex gap-2">
           <input
             value={message}
@@ -197,7 +315,7 @@ msg.text.toLowerCase().includes("bồng chanh") &&
           <button
            onClick={() => sendMessage()}
             disabled={loading}
-            className="bg-black text-white px-6 py-3 rounded-xl disabled:opacity-50"
+            className="bg-[#064563] text-white px-6 py-3 rounded-xl disabled:opacity-50"
           >
             Gửi
           </button>
@@ -205,25 +323,14 @@ msg.text.toLowerCase().includes("bồng chanh") &&
       </div>
       </div>
       <aside
-  className={`relative border-l bg-white sticky top-0 h-screen self-start overflow-y-auto transition-all duration-300 ${
+  className={`relative flex flex-col border-l bg-white sticky top-0 h-screen self-start overflow-y-auto transition-all duration-300 ${
     historyOpen ? "w-80" : "w-0 overflow-hidden border-l-0"
   }`}
 >
-  {historyOpen && (
-<button
-  onClick={() => setHistoryOpen(false)}
- className="fixed right-[19rem] top-1/2 -translate-y-1/2 z-50 w-8 h-12 rounded-full border bg-white shadow"
->
-  &lt;
-</button>
-)}
-  <div className="bg-black p-4">
-    <input
-      type="text"
-      placeholder="Tìm kiếm..."
-      className="w-full rounded-full px-4 py-2"
-    />
-  </div>
+  
+
+
+  
 
   <div className="p-4">
     <h2 className="text-xl font-bold">Lịch sử tìm kiếm</h2>
@@ -238,16 +345,19 @@ msg.text.toLowerCase().includes("bồng chanh") &&
     </button>
   ))}
 </div>
+{userEmail && (
+  <div className="mt-auto p-4">
+    <button
+      onClick={logout}
+      className="w-full rounded-lg bg-[#064563] px-4 py-3 font-semibold text-white"
+    >
+      Đăng xuất
+    </button>
+  </div>
+)}
   </div>
 </aside>
-{!historyOpen && (
-  <button
-    onClick={() => setHistoryOpen(true)}
-    className="fixed right-0 top-1/2 -translate-y-1/2 w-8 h-12 rounded-l-full border bg-white shadow"
-  >
-    &gt;
-  </button>
-)}
+
 
     </main>
   );
