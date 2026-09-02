@@ -21,9 +21,7 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState("");
  
   const messagesEndRef = useRef<HTMLDivElement>(null);
-useEffect(() => {
-  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-}, [messages, loading]);
+
 
 useEffect(() => {
   supabase.auth.getUser().then(async ({ data }) => {
@@ -150,7 +148,7 @@ if (userData.user) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 flex flex-row items-stretch">
+    <main className="h-screen overflow-hidden bg-gray-100 flex flex-row items-stretch">
       <div className="flex-1 min-w-0 p-0">
         <div className="sticky top-0 z-50 flex items-center gap-3 bg-black text-white py-2 px-4">
   <img
@@ -243,7 +241,7 @@ if (userData.user) {
   </span>
 </button>
 </div>
-        <div className="space-y-4 pb-22">
+        <div className="space-y-4 pb-22 max-h-[calc(100vh-220px)] overflow-y-auto overscroll-contain pr-2">
           {messages.map((msg, index) => (
             <div
               key={index}
