@@ -150,7 +150,7 @@ async function sendMessage(customMessage?: string) {
       </div>
 
       {/* HỘI THOẠI */}
-      <div className="relative w-full space-y-4">
+      <div className="relative mt-6 w-full space-y-4">
         <div className="w-full space-y-4">
           
           {messages.map((msg, index) => (
