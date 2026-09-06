@@ -159,7 +159,7 @@ async function sendMessage(customMessage?: string) {
   className={
     msg.role === "user"
   ? "ml-auto flex w-1/2 min-w-0 justify-end pr-2"
-  : "mr-auto flex w-[88%] min-w-0 items-end justify-end gap-2 pr-2 sm:w-1/2"
+  : "mr-auto flex w-[88%] min-w-0 items-end justify-start gap-2 pr-2 sm:w-1/2"
   }
 >
               {msg.role === "assistant" && (
