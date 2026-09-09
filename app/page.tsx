@@ -17,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [currentBird, setCurrentBird] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
   useEffect(() => {
   const timeout = setTimeout(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -32,19 +33,47 @@ async function sendMessage(customMessage?: string) {
     const text = (customMessage ?? message).trim();
    const normalizedText = text.toLowerCase();
 
+const lastAssistantMessage =
+  [...messages]
+    .reverse()
+    .find((msg) => msg.role === "assistant")
+    ?.text.toLowerCase() || "";
+
+let contextualText = normalizedText;
+
+if (
+  lastAssistantMessage.includes("chìa vôi trắng") &&
+  lastAssistantMessage.includes("chìa vôi xám")
+) {
+  if (normalizedText === "xám") {
+    contextualText = "chìa vôi xám";
+  } else if (normalizedText === "trắng") {
+    contextualText = "chìa vôi trắng";
+  }
+}
+
 const detectedBird = birdMedia.find((bird) =>
   bird.names.some((name) =>
-    normalizedText.includes(name.toLowerCase())
+    contextualText.includes(name.toLowerCase())
   )
 );
+   
+ 
 
 if (detectedBird) {
   setCurrentBird(detectedBird.slug);
 }
 
-    if (!text || loading) return;
+    if (!text || sendingRef.current) return;
+sendingRef.current = true;
    
-
+setMessages((prev) => [
+  ...prev,
+  {
+    role: "user",
+    text,
+  },
+]);
     setMessage("");
     setLoading(true);
 
@@ -69,10 +98,7 @@ if (detectedBird) {
         throw new Error(data.error || "Có lỗi xảy ra.");
       }
 setMessages((prev) => [ ...prev, { role: "assistant", text: data.reply, birdSlug: detectedBird?.slug || currentBird, }, ]);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: data.reply },
-      ]);
+      
     } catch (error) {
       console.error(error);
 
@@ -84,13 +110,16 @@ setMessages((prev) => [ ...prev, { role: "assistant", text: data.reply, birdSlug
         },
       ]);
      } finally {
-      setLoading(false);
-    }
+  sendingRef.current = false;
+  setLoading(false);
+}
   }
 
   const activeBird = birdMedia.find(
     (bird) => bird.slug === currentBird
   );
+  const getBirdBySlug = (slug?: string) =>
+  birdMedia.find((bird) => bird.slug === slug);
 
   return (
   <main className="flex h-dvh w-full flex-col overflow-hidden bg-gray-100">
@@ -188,19 +217,32 @@ setMessages((prev) => [ ...prev, { role: "assistant", text: data.reply, birdSlug
 
                   {index > 0 &&
   messages[index - 1]?.role === "user" &&
-  activeBird &&
-  (messages[index - 1].text
-    .toLowerCase()
-    .includes("ảnh") ||
-    messages[index - 1].text
-      .toLowerCase()
-      .includes("xem")) && (
-    <img
-      src={activeBird.image}
-      alt={activeBird.names[0]}
-      className="mx-auto mt-3 h-auto w-[55%] max-w-full rounded-xl object-contain"
-    />
-  )}
+  getBirdBySlug(msg.birdSlug) &&
+messages[index - 1]?.role === "user" &&
+(
+  birdMedia.some((bird) =>
+    bird.slug === msg.birdSlug &&
+    bird.names.some((name) =>
+      messages[index - 1].text
+        .toLowerCase()
+        .includes(name.toLowerCase())
+    )
+  ) ||
+  (
+    ["xám", "trắng"].includes(
+      messages[index - 1].text.toLowerCase().trim()
+    ) &&
+    messages[index - 2]?.role === "assistant" &&
+    messages[index - 2].text.toLowerCase().includes("chìa vôi trắng") &&
+    messages[index - 2].text.toLowerCase().includes("chìa vôi xám")
+  )
+) && (
+  <img
+    src={getBirdBySlug(msg.birdSlug)!.image}
+    alt={getBirdBySlug(msg.birdSlug)!.names[0]}
+    className="mx-auto mt-3 h-auto w-[55%] max-w-full rounded-xl object-contain"
+  />
+)}
 
                   {index > 0 &&
   messages[index - 1]?.role === "user" &&
