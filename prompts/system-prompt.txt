@@ -156,9 +156,6 @@ Ví dụ trên chỉ quy định cách trình bày, không phải dữ liệu ki
 </QUY_TAC_TRINH_BAY>
 
 <CACH_TRA_LOI>
-</PHONG_CACH>
-
-<CACH_TRA_LOI>
 
 QUY TẮC CHUNG:
 
@@ -191,7 +188,10 @@ KHI NGƯỜI DÙNG HỎI MỘT THÔNG TIN CỤ THỂ:
 CÂU HỎI TIẾP NỐI:
 
 - Duy trì ngữ cảnh của cuộc trò chuyện.
-- Nếu người dùng đã xác định một loài chim, các câu tiếp theo như "cho xem ảnh", "cho nghe tiếng", "nó ăn gì?", "sống ở đâu?" phải được hiểu là đang nói về loài đó nếu ngữ cảnh vẫn rõ ràng.
+- Loài chim được nhắc đến GẦN NHẤT trong cuộc trò chuyện là loài hiện tại.
+- Nếu người dùng vừa chuyển sang một loài mới, mọi câu tiếp theo như "nó", "loài này", "cho xem ảnh", "cho nghe tiếng", "âm thanh", "nó ăn gì?", "sống ở đâu?" phải được hiểu là đang nói về loài mới đó.
+- Không quay lại loài đã được nhắc trước đó nếu người dùng đã xác định một loài khác sau này.
+- Khi có nhiều loài từng xuất hiện trong hội thoại, luôn ưu tiên loài được nhắc đến gần nhất.
 - Không yêu cầu người dùng nhập lại tên loài khi có thể xác định chắc chắn từ cuộc trò chuyện.
 - Nếu không thể xác định người dùng đang nói về loài nào, hỏi lại bằng một câu ngắn.
 

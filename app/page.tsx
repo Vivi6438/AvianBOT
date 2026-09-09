@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { birdMedia } from "@/data/birds";
 
 
 type ChatMessage = {
   role: "user" | "assistant";
   text: string;
+  birdSlug?: string;
 };
 
 export default function Home() {
@@ -28,15 +30,27 @@ export default function Home() {
 
 async function sendMessage(customMessage?: string) {
     const text = (customMessage ?? message).trim();
-    if (text.toLowerCase().includes("bồng chanh")) {
-  setCurrentBird("bong-chanh");
+   const normalizedText = text.toLowerCase();
+
+const detectedBird = birdMedia.find((bird) =>
+  bird.names.some((name) =>
+    normalizedText.includes(name.toLowerCase())
+  )
+);
+
+if (detectedBird) {
+  setCurrentBird(detectedBird.slug);
 }
 
     if (!text || loading) return;
     setMessages((prev) => [
-      ...prev,
-      { role: "user", text },
-    ]);
+  ...prev,
+  {
+    role: "assistant",
+    text: data.reply,
+    birdSlug: detectedBird?.slug || currentBird,
+  },
+]);
 
     setMessage("");
     setLoading(true);
@@ -75,10 +89,14 @@ async function sendMessage(customMessage?: string) {
           text: "Xin lỗi, hiện tại tôi không thể trả lời.",
         },
       ]);
-    } finally {
+     } finally {
       setLoading(false);
     }
   }
+
+  const activeBird = birdMedia.find(
+    (bird) => bird.slug === currentBird
+  );
 
   return (
   <main className="flex h-dvh w-full flex-col overflow-hidden bg-gray-100">
@@ -175,45 +193,40 @@ async function sendMessage(customMessage?: string) {
     <ReactMarkdown>{msg.text}</ReactMarkdown>
 
                   {index > 0 &&
-                    messages[index - 1]?.role === "user" &&
-                    currentBird === "bong-chanh" &&
-                    msg.text.toLowerCase().includes("bồng chanh") &&
-                    (messages[index - 1].text
-                      .toLowerCase()
-                      .includes("ảnh") ||
-                      messages[index - 1].text
-                        .toLowerCase()
-                        .includes("xem")) && (
-                      <img
-                        src="/images/bong-chanh.jpg"
-                        alt="Chim Bồng chanh"
-                        className="mx-auto mt-3 h-auto w-[55%] max-w-full rounded-xl object-contain"
-                      />
-                    )}
+  messages[index - 1]?.role === "user" &&
+  activeBird &&
+  (messages[index - 1].text
+    .toLowerCase()
+    .includes("ảnh") ||
+    messages[index - 1].text
+      .toLowerCase()
+      .includes("xem")) && (
+    <img
+      src={activeBird.image}
+      alt={activeBird.names[0]}
+      className="mx-auto mt-3 h-auto w-[55%] max-w-full rounded-xl object-contain"
+    />
+  )}
 
                   {index > 0 &&
-                    messages[index - 1]?.role === "user" &&
-                    currentBird === "bong-chanh" &&
-                    msg.text.toLowerCase().includes("bồng chanh") &&
-                    (messages[index - 1].text
-                      .toLowerCase()
-                      .includes("tiếng") ||
-                      messages[index - 1].text
-                        .toLowerCase()
-                        .includes("nghe") ||
-                      messages[index - 1].text
-                        .toLowerCase()
-                        .includes("âm thanh") ||
-                      messages[index - 1].text
-                        .toLowerCase()
-                        .includes("voice")) && (
-                      <audio controls className="mt-3 w-full">
-                        <source
-                          src="/audio/bong-chanh.wav"
-                          type="audio/wav"
-                        />
-                      </audio>
-                    )}
+  messages[index - 1]?.role === "user" &&
+  activeBird &&
+  (messages[index - 1].text
+    .toLowerCase()
+    .includes("tiếng") ||
+    messages[index - 1].text
+      .toLowerCase()
+      .includes("nghe") ||
+    messages[index - 1].text
+      .toLowerCase()
+      .includes("âm thanh") ||
+    messages[index - 1].text
+      .toLowerCase()
+      .includes("voice")) && (
+    <audio controls className="mt-3 w-full">
+      <source src={activeBird.audio} />
+    </audio>
+  )}
                 </div>
               ) : (
   <div className="w-fit max-w-full break-words rounded-xl bg-[#064563] p-4 text-white">
