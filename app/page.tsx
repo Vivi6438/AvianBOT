@@ -43,14 +43,7 @@ if (detectedBird) {
 }
 
     if (!text || loading) return;
-    setMessages((prev) => [
-  ...prev,
-  {
-    role: "assistant",
-    text: data.reply,
-    birdSlug: detectedBird?.slug || currentBird,
-  },
-]);
+   
 
     setMessage("");
     setLoading(true);
@@ -71,10 +64,11 @@ if (detectedBird) {
 
       const data = await response.json();
 
+
       if (!response.ok) {
         throw new Error(data.error || "Có lỗi xảy ra.");
       }
-
+setMessages((prev) => [ ...prev, { role: "assistant", text: data.reply, birdSlug: detectedBird?.slug || currentBird, }, ]);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", text: data.reply },
