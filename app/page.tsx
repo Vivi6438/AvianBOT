@@ -28,39 +28,125 @@ function mentionedBirds(text: string) {
   return birdMedia.filter(bird => precise.some(item => item.bird.slug === bird.slug));
 }
 
-function requestDetails(text: string, currentSlug: string, pending: PendingChoice | null) {
+function requestDetails(
+  text: string,
+  currentSlug: string,
+  pending: PendingChoice | null
+) {
   const normalized = normalizeText(text);
-  const image = /\b(anh|hinh|photo|image|picture)\b/.test(normalized.replace(/tieng anh/g, ""));
-  const audio = /\b(tieng|nghe|am thanh|voice|audio|sound)\b/.test(normalized.replace(/tieng anh/g, ""));
-  const shortName = normalized
-    .replace(/\b(hinh anh|am thanh|cho toi|cho minh|cho em|cho xem|cho nghe|xem|nghe|anh|hinh|tieng|photo|image|picture|audio|sound|voice|cua|con|loai|chim|nhe|nha|khong)\b/g, " ")
-    .replace(/\s+/g, " ").trim();
+
+  // Người dùng yêu cầu xem ảnh
+  const image =
+    /\b(anh|hinh|photo|image|picture)\b/.test(
+      normalized.replace(/tieng anh/g, "")
+    ) ||
+    /\b(cho toi xem|cho minh xem|cho em xem|xem cho toi|xem cho minh|xem di|cho xem)\b/.test(
+      normalized
+    );
+
+  // Người dùng yêu cầu nghe âm thanh
+  const audio =
+    /\b(tieng|nghe|am thanh|voice|audio|sound)\b/.test(
+      normalized.replace(/tieng anh/g, "")
+    );
+
+  // Tìm loài chim được nhắc trực tiếp trong câu hiện tại
   let candidates = mentionedBirds(text);
-  let choice = false;
-  if (!candidates.length && shortName && pending) {
-    candidates = birdMedia.filter(bird => pending.slugs.includes(bird.slug) && bird.names.some(name =>
-      ` ${normalizeText(name)} `.includes(` ${shortName} `)));
-    choice = candidates.length > 0;
+
+  // Xác định đây có phải câu hỏi tiếp nối hay không
+  const followup =
+    ((image || audio) && candidates.length === 0) ||
+    /^(anh|hinh|hinh anh|anh dau|hinh dau|tieng|tieng keu|tieng hot|am thanh|nghe|cho xem|cho toi xem|cho minh xem|cho em xem|xem di|ok|duoc|uh|u|co|vay)$/.test(
+      normalized
+    ) ||
+    /\b(no|loai nay|con nay)\b/.test(normalized);
+
+  /*
+   * NGUYÊN TẮC:
+   *
+   * 1. Nếu câu hiện tại nhắc CHIM MỚI → ưu tiên chim mới.
+   * 2. Nếu câu hiện tại không nhắc chim → dùng currentBird.
+   */
+
+  let selected =
+    candidates.length === 1
+      ? candidates[0]
+      : undefined;
+
+  // Nếu người dùng không nhắc loài mới,
+  // sử dụng loài chim đang được nói đến trước đó.
+  if (!selected && followup && currentSlug) {
+    selected = birdMedia.find(
+      bird => bird.slug === currentSlug
+    );
   }
-  if (!candidates.length && shortName.split(" ").length >= 2) {
-    candidates = birdMedia.filter(bird => bird.names.some(name =>
-      ` ${normalizeText(name)} `.includes(` ${shortName} `)));
+
+  // Nếu đang chờ người dùng chọn một loài
+  if (!selected && pending && followup && pending.slugs.length === 1) {
+    selected = birdMedia.find(
+      bird => bird.slug === pending.slugs[0]
+    );
   }
-  if (pending && candidates.length === 1 && pending.slugs.includes(candidates[0].slug)) choice = true;
-  const followup = ((image || audio) && !shortName) || /^(anh|hinh|hinh anh|anh dau|hinh dau|tieng|tieng keu|tieng hot|am thanh|nghe|cho xem anh|cho nghe tieng|cho toi xem anh|cho minh xem anh|an gi|song o dau|sinh san the nao)$/.test(normalized)
-    || /\b(no|loai nay|con nay)\b/.test(normalized);
-  const selected = candidates.length === 1 ? candidates[0]
-    : candidates.length === 0 && followup && !pending ? birdMedia.find(bird => bird.slug === currentSlug) : undefined;
+
+  // Tìm tên loài gần đúng nếu người dùng viết thiếu
+  const shortName = normalized
+    .replace(
+      /\b(hinh anh|am thanh|cho toi|cho minh|cho em|cho xem|xem|nghe|anh|hinh|tieng|photo|image|picture|audio|sound|voice|cua|con|loai|chim|nhe|nha|ok|duoc|uh|u|co|nay|no)\b/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!selected && shortName) {
+    const matched = birdMedia.filter(bird =>
+      bird.names.some(name =>
+        normalizeText(name).includes(shortName)
+      )
+    );
+
+    if (matched.length === 1) {
+      selected = matched[0];
+      candidates = matched;
+    }
+  }
+
+  // Nếu người dùng nhập một loài mới,
+  // loại tên loài đó khỏi phần câu hỏi còn lại.
   let rest = normalized;
-  const aliases = selected ? [...selected.names].map(normalizeText).sort((a, b) => b.length - a.length) : [];
-  for (const name of aliases) rest = ` ${rest} `.replace(` ${name} `, " ").trim();
-  if (selected && shortName && selected.names.some(name => ` ${normalizeText(name)} `.includes(` ${shortName} `))) {
-    rest = ` ${rest} `.replace(` ${shortName} `, " ").trim();
+
+  if (selected) {
+    const aliases = [...selected.names]
+      .map(normalizeText)
+      .sort((a, b) => b.length - a.length);
+
+    for (const name of aliases) {
+      rest = ` ${rest} `
+        .replace(` ${name} `, " ")
+        .trim();
+    }
   }
-  rest = rest.replace(/\b(hinh anh|am thanh|cho toi|cho minh|cho em|loai nay|con nay|cho|toi|minh|em|xem|nghe|anh|hinh|tieng|keu|hot|photo|image|picture|audio|sound|voice|cua|con|loai|chim|no|nay|dau|co|khong|nhe|nha|voi|va)\b/g, " ").trim();
-  const wantsImage = image || (choice && !!pending?.image);
-  const wantsAudio = audio || (choice && !!pending?.audio);
-  return { candidates, selected, wantsImage, wantsAudio, mediaOnly: !rest && (wantsImage || wantsAudio) };
+
+  rest = rest
+    .replace(
+      /\b(hinh anh|am thanh|cho toi|cho minh|cho em|loai nay|con nay|cho|toi|minh|em|xem|nghe|anh|hinh|tieng|keu|hot|photo|image|picture|audio|sound|voice|cua|con|loai|chim|no|nay|dau|co|khong|nhe|nha|voi|va|ok|duoc|uh|u)\b/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const wantsImage = image || (!!pending?.image && followup);
+const wantsAudio = audio || (!!pending?.audio && followup);
+
+  const mediaOnly =
+    !rest && (wantsImage || wantsAudio);
+
+    return {
+    candidates,
+    selected,
+    wantsImage,
+    wantsAudio,
+    mediaOnly
+  };
 }
 
 export default function Home() {
